@@ -12,6 +12,7 @@ import { JSON_API_TYPE, SOURCE_GRAPH } from 'frontend-lmb/utils/constants';
 import { PROV } from 'frontend-lmb/rdf/namespaces';
 import { TEXT_CUSTOM_DISPLAY_TYPE_ID } from 'frontend-lmb/utils/well-known-ids';
 import { showErrorToast } from 'frontend-lmb/utils/toasts';
+import moment from 'moment';
 
 export default class RdfInputFieldCrudCustomFieldModalComponent extends Component {
   @consume('form-definition') formDefinition;
@@ -22,6 +23,7 @@ export default class RdfInputFieldCrudCustomFieldModalComponent extends Componen
   @service formReplacements;
 
   @tracked isRemovingField;
+  @tracked wantsToRemoveTime = null;
 
   customFieldEntry = this.store.createRecord('library-entry', {
     name: 'Eigen veld',
@@ -47,12 +49,6 @@ export default class RdfInputFieldCrudCustomFieldModalComponent extends Componen
     this.displayTypes.then((displayTypes) => {
       this.displayType = displayTypes.findBy(byProperty, withValue);
     });
-  }
-
-  @action
-  updateField(event) {
-    const { name, value } = event.target;
-    this[name] = value;
   }
 
   saveChanges = task(async () => {
@@ -89,21 +85,6 @@ export default class RdfInputFieldCrudCustomFieldModalComponent extends Componen
     this.showEditFieldModal = false;
   });
 
-  @action
-  selectLibraryFieldType(libraryEntry) {
-    this.libraryFieldType = libraryEntry;
-    this.displayTypes.then((types) => {
-      this.displayType =
-        types.findBy('uri', libraryEntry.get('displayType.uri')) ||
-        types.findBy('id', TEXT_CUSTOM_DISPLAY_TYPE_ID);
-    });
-  }
-
-  @action
-  selectDisplayType(displayType) {
-    this.displayType = displayType;
-  }
-
   async removeField() {
     await fetch(`/form-content/fields`, {
       method: 'DELETE',
@@ -115,24 +96,6 @@ export default class RdfInputFieldCrudCustomFieldModalComponent extends Componen
         formUri: this.args.form.uri,
       }),
     });
-  }
-
-  @action
-  async onRemove() {
-    this.isRemovingField = true;
-    await this.removeField();
-    this.onFormUpdate();
-    this.isRemovingField = false;
-  }
-
-  @action
-  closeModal() {
-    if (this.args.onCloseModal) {
-      this.fieldName = null;
-      this.libraryFieldType = null;
-      this.displayType = null;
-      this.args.onCloseModal();
-    }
   }
 
   get displayTypes() {
@@ -231,5 +194,61 @@ export default class RdfInputFieldCrudCustomFieldModalComponent extends Componen
     }
 
     return 'Pas aan';
+  }
+
+  get wantsToRemove() {
+    return !!this.wantsToRemoveTime;
+  }
+
+  @action
+  async onRemove() {
+    if (this.wantsToRemoveTime) {
+      this.isRemovingField = true;
+      await this.removeField();
+      this.onFormUpdate();
+      this.isRemovingField = false;
+    } else {
+      this.wantsToRemoveTime = moment();
+    }
+  }
+
+  @action
+  closeModal() {
+    if (this.args.onCloseModal) {
+      this.fieldName = null;
+      this.libraryFieldType = null;
+      this.displayType = null;
+      this.args.onCloseModal();
+    }
+  }
+
+  @action
+  updateField(event) {
+    const { name, value } = event.target;
+    this[name] = value;
+  }
+
+  @action
+  selectLibraryFieldType(libraryEntry) {
+    this.libraryFieldType = libraryEntry;
+    this.displayTypes.then((types) => {
+      this.displayType =
+        types.findBy('uri', libraryEntry.get('displayType.uri')) ||
+        types.findBy('id', TEXT_CUSTOM_DISPLAY_TYPE_ID);
+    });
+  }
+
+  @action
+  selectDisplayType(displayType) {
+    this.displayType = displayType;
+  }
+
+  @action
+  onCancelButton() {
+    if (this.wantsToRemoveTime) {
+      this.wantsToRemoveTime = null;
+    } else {
+      this.args.onCloseModal();
+    }
   }
 }
