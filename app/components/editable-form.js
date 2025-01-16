@@ -48,4 +48,9 @@ export default class EditableFormComponent extends Component {
   get formDefinition() {
     return this.currentForm;
   }
+
+  @provide('is-read-only')
+  get isReadOnly() {
+    return this.args.isReadOnly;
+  }
 }
